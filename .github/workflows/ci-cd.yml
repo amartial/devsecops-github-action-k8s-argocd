@@ -196,23 +196,24 @@ jobs:
 
       - name: Update Kubernetes deployment file
         env:
-          IMAGE_TAG: sha-${{ github.sha }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          REGISTRY: nexus.sis-rh.com
+          REGISTRY_URL: nexus.sis-rh.com
+          REPOSITORY_PATH: repository/${{ vars.IMAGE_NAME }}-hosted
+          IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
         run: |
-          # Define the new image with tag
-          NEW_IMAGE="${REGISTRY}/${GITHUB_REPOSITORY}:${IMAGE_TAG}"
-          NEW_IMAGE=${{ env.REGISTRY }}/repository/${{ env.IMAGE_NAME }}-hosted/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}
+          # Exemple final : nexus.sis-rh.com/repository/tictactoe-hosted/tictactoe:sha-abcdef1
+          NEW_IMAGE="${REGISTRY_URL}/${REPOSITORY_PATH}/${IMAGE_NAME}:${IMAGE_TAG}"
 
-          # Update the deployment file directly
-          sed -i "s|image: ${REGISTRY}/.*|image: ${NEW_IMAGE}|g" kubernetes/deployment.yaml
+          # Update the deployment file
+          sed -i "s|image: .*|image: ${NEW_IMAGE}|g" kubernetes/deployment.yaml
 
-          # Verify the change
-          echo "Updated deployment to use image: ${NEW_IMAGE}"
-          grep -A 1 "image:" kubernetes/deployment.yaml
+          # Check
+          echo "✅ Updated image to: ${NEW_IMAGE}"
+          grep "image:" kubernetes/deployment.yaml
 
       - name: Commit and push changes
         run: |
           git add kubernetes/deployment.yaml
           git commit -m "Update Kubernetes deployment with new image tag: ${{ needs.build-and-push.outputs.image_tag }} [skip ci]" || echo "No changes to commit"
           git push
+
