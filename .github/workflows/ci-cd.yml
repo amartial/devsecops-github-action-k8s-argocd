@@ -198,10 +198,11 @@ jobs:
         env:
           IMAGE_TAG: sha-${{ github.sha }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          REGISTRY: ghcr.io
+          REGISTRY: nexus.sis-rh.com
         run: |
           # Define the new image with tag
           NEW_IMAGE="${REGISTRY}/${GITHUB_REPOSITORY}:${IMAGE_TAG}"
+          NEW_IMAGE=${{ env.REGISTRY }}/repository/${{ env.IMAGE_NAME }}-hosted/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image_tag }}
 
           # Update the deployment file directly
           sed -i "s|image: ${REGISTRY}/.*|image: ${NEW_IMAGE}|g" kubernetes/deployment.yaml
