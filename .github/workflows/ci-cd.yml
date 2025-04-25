@@ -76,8 +76,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     needs:
-      - tests
-      - sonar
+      - build
     env:
       REGISTRY: nexus.sis-rh.com
       IMAGE_NAME: tiktactoe   # ${{ github.repository }}
