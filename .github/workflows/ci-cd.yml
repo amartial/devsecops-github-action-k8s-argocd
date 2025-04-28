@@ -194,6 +194,11 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "def.martial@gmail.com"
 
+      # Étape 2 : Effectuer un pull pour récupérer les changements distants
+      - name: Pull latest changes
+        run: |
+          git pull origin main --rebase || exit 1
+
       - name: Update Kubernetes deployment file
         env:
           REGISTRY_URL: nexus.sis-rh.com
