@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
       - name: tic-tac-toe
-        # image: ghcr.io/samsorrahman/devsecops-github-action-k8s-argocd:sha-ca035703cd8c838cd531460714812d3731c7e1e1
-        image: nexus.sis-rh.com/repository/tictactoe-hosted/tictactoe:sha-abcdef1
+        # image: nexus.sis-rh.com/repository/-hosted/:
+        image: nexus.sis-rh.com/repository/-hosted/:
         # Image will be automatically updated by CI/CD pipeline
         imagePullPolicy: Always
         ports:
