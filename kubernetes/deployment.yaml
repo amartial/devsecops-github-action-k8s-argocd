@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
       - name: tic-tac-toe
-        # image: nexus.sis-rh.com/repository/-hosted/:
-        image: nexus.sis-rh.com/repository/tictactoe-hosted/tictactoe:sha-74c0ab6
+        # image: nexus.sis-rh.com/repository/tictactoe-hosted/tictactoe:sha-83f43afc41140617b6f32795608cd3e2b1c23f3f
+        image: nexus.sis-rh.com/repository/tictactoe-hosted/tictactoe:sha-83f43afc41140617b6f32795608cd3e2b1c23f3f
         # Image will be automatically updated by CI/CD pipeline
         imagePullPolicy: Always
         ports:
