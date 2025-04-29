@@ -26,7 +26,7 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm test || echo "No tests found, would add tests in a real project."
+        run: npm test || echo "No tests found, would add tests in a real project"
 
   lint:
     name: Static Code Analysis
@@ -74,109 +74,74 @@ jobs:
           path: dist/
 
   build-and-push:
-    name: Create and push image
+    name: Docker Build and Push
     runs-on: ubuntu-latest
-    needs:
-      - build
+    needs: [build]
     env:
-      REGISTRY: nexus.sis-rh.com
-      IMAGE_NAME: tiktactoe   # ${{ github.repository }}
-
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}
+    outputs:
+      image_tag: ${{ steps.set_output.outputs.image_tag }}
     steps:
-      # Vérification du code source
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # Construction de l'image Docker
-      - name: Build Docker Image
-        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+            latest
 
       - name: Set image tag output
         id: set_output
         run: echo "image_tag=sha-$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
 
-      # Taguer l'image pour Nexus
-      - name: Tag Docker Image
-        run: docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.REGISTRY }}/repository/${{ env.IMAGE_NAME }}-hosted/${{ env.IMAGE_NAME }}:${{ steps.set_output.outputs.image_tag }}
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          load: true
 
-      # Connexion à Nexus et push l'image
-      - name: Push Docker Image to Nexus
-        env:
-          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
-          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
-        run: |
-          echo $NEXUS_PASSWORD | docker login ${{ env.REGISTRY }} --username $NEXUS_USERNAME --password-stdin
-          docker push ${{ env.REGISTRY }}/repository/${{ env.IMAGE_NAME }}-hosted/${{ env.IMAGE_NAME }}:${{ steps.set_output.outputs.image_tag }}
+      - name: Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-  # docker:
-  #   name: Docker Build and Push
-  #   runs-on: ubuntu-latest
-  #   needs: [build]
-  #   env:
-  #     REGISTRY: nexus.sis-rh.com
-  #     IMAGE_NAME: ${{ github.repository }}
-  #   outputs:
-  #     image_tag: ${{ steps.set_output.outputs.image_tag }}
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
-
-  #     - name: Download build artifacts
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         name: build-artifacts
-  #         path: dist/
-
-  #     - name: Set up Docker Buildx
-  #       uses: docker/setup-buildx-action@v3
-
-  #     - name: Login to GitHub Container Registry
-  #       uses: docker/login-action@v3
-  #       with:
-  #         registry: ${{ env.REGISTRY }}
-  #         username: ${{ github.actor }}
-  #         password: ${{ secrets.TOKEN }}
-
-  #     - name: Extract metadata for Docker
-  #       id: meta
-  #       uses: docker/metadata-action@v5
-  #       with:
-  #         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-  #         tags: |
-  #           type=sha,format=long
-  #           type=ref,event=branch
-  #           latest
-
-      # - name: Set image tag output
-      #   id: set_output
-      #   run: echo "image_tag=sha-$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
-
-  #     - name: Build Docker image
-  #       uses: docker/build-push-action@v5
-  #       with:
-  #         context: .
-  #         push: false
-  #         tags: ${{ steps.meta.outputs.tags }}
-  #         labels: ${{ steps.meta.outputs.labels }}
-  #         load: true
-
-  #     - name: Push Docker image
-  #       uses: docker/build-push-action@v5
-  #       with:
-  #         context: .
-  #         push: true
-  #         tags: ${{ steps.meta.outputs.tags }}
-  #         labels: ${{ steps.meta.outputs.labels }}
-
-  #     # - name: Run Trivy vulnerability scanner
-  #       # uses: aquasecurity/trivy-action@master
-  #       # with:
-  #       #   image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
-  #       #   format: 'table'
-  #       #   exit-code: '1'
-  #       #   ignore-unfixed: true
-  #       #   vuln-type: 'os,library'
-  #       #   severity: 'CRITICAL,HIGH'
+      # - name: Run Trivy vulnerability scanner
+        # uses: aquasecurity/trivy-action@master
+        # with:
+        #   image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+        #   format: 'table'
+        #   exit-code: '1'
+        #   ignore-unfixed: true
+        #   vuln-type: 'os,library'
+        #   severity: 'CRITICAL,HIGH'
 
   update-k8s:
     name: Update Kubernetes Deployment
@@ -192,33 +157,26 @@ jobs:
       - name: Setup Git config
         run: |
           git config user.name "GitHub Actions"
-          git config user.email "def.martial@gmail.com"
-
-      # Étape 2 : Effectuer un pull pour récupérer les changements distants
-      - name: Pull latest changes
-        run: |
-          git pull origin main --rebase || exit 1
+          git config user.email "martialmbe@gmail.com"
 
       - name: Update Kubernetes deployment file
         env:
-          REGISTRY_URL: nexus.sis-rh.com
-          IMAGE_NAME: tictactoe
-          REPOSITORY_PATH: repository/tictactoe-hosted
           IMAGE_TAG: sha-${{ github.sha }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REGISTRY: ghcr.io
         run: |
-          # Exemple final : nexus.sis-rh.com/repository/tictactoe-hosted/tictactoe:sha-abcdef1
-          NEW_IMAGE="${REGISTRY_URL}/${REPOSITORY_PATH}/${IMAGE_NAME}:${IMAGE_TAG}"
+          # Define the new image with tag
+          NEW_IMAGE="${REGISTRY}/${GITHUB_REPOSITORY}:${IMAGE_TAG}"
 
-          # Update the deployment file
-          sed -i "s|image: .*|image: ${NEW_IMAGE}|g" kubernetes/deployment.yaml
+          # Update the deployment file directly
+          sed -i "s|image: ${REGISTRY}/.*|image: ${NEW_IMAGE}|g" kubernetes/deployment.yaml
 
-          # Check
-          echo "✅ Updated image to: ${NEW_IMAGE}"
-          grep "image:" kubernetes/deployment.yaml
+          # Verify the change
+          echo "Updated deployment to use image: ${NEW_IMAGE}"
+          grep -A 1 "image:" kubernetes/deployment.yaml
 
       - name: Commit and push changes
         run: |
           git add kubernetes/deployment.yaml
-          git commit -m "Update Kubernetes deployment with new image tag: ${{ needs.build-and-push.outputs.image_tag }} [skip ci]" || echo "No changes to commit"
+          git commit -m "Update Kubernetes deployment with new image tag: ${{ needs.docker.outputs.image_tag }} [skip ci]" || echo "No changes to commit"
           git push
-
