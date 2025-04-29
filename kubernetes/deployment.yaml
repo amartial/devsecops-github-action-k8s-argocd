@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: tic-tac-toe
+  namespace: argocd  # Ajout du namespace
   labels:
     app: tic-tac-toe
 spec:
@@ -17,7 +18,6 @@ spec:
       containers:
       - name: tic-tac-toe
         image: ghcr.io/amartial/devsecops-github-action-k8s-argocd:sha-3f5b3aa0c7265f4ae9011db05c69844eaa6472f1
-        # Image will be automatically updated by CI/CD pipeline
         imagePullPolicy: Always
         ports:
         - containerPort: 80
