@@ -7,4 +7,12 @@ phases:
   build:
     commands:
       - echo "Clonage du repo GitHub..."
-
+      - git clone $CODEBUILD_SOURCE_REPO repo
+      - cd repo
+      - echo "Recherche du fichier CloudFormation..."
+      - FILE=$(ls *.yaml *.yml | head -n 1)
+      - echo "Fichier trouvé : $FILE"
+      - echo "Compression du fichier..."
+      - zip backup-$(date +%F).zip "$FILE"
+      - echo "Envoi vers S3..."
+      - aws s3 cp backup-$(date +%F).zip s3://devsecops-github-action-k8s-argocd/
